@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+
+# sources
+#   https://ziglang.org/builds/
+#   https://ziglang.org/download/community-mirrors.txt
+
+if [ -z "$URL" ] && [ -z "$MINISIG_URL" ]; then
+    URL=https://ziglang.org/builds/zig-aarch64-macos-0.17.0-dev.956+2dca73595.tar.xz
+    MINISIG_URL=https://ziglang.org/builds/zig-aarch64-macos-0.17.0-dev.956+2dca73595.tar.xz.minisig
+fi
+
+if [ -z "$INSTALL_PATH" ]; then
+    INSTALL_PATH=/usr/local/zig
+fi
+
+install_zig() {
+    FNAME="${URL##*/}"
+    SIGNAME="${MINISIG_URL##*/}"
+
+    printf "downloading %s\n" "$URL"
+    curl -LO "$URL"
+
+    printf "downloading signature\n"
+    curl -LO "$MINISIG_URL"
+
+    if ! minisign -Vm "$FNAME" -P RWSGOq2NVecA2UPNdBUZykf1CCb147pkmdtYxgb3Ti+JO/wCYvhbAb/U; then
+        printf "invalid signature, exiting\n"
+        exit 1
+    fi
+
+    mkdir zig
+    tar -xvf "$FNAME" -C zig --strip-components=1 >/dev/null 2>&1
+
+    sudo rm -rf "$INSTALL_PATH"
+    sudo mv zig "$INSTALL_PATH"
+    rm "$FNAME"
+    rm "$SIGNAME"
+}
+
+install_zig
+
+printf "done\n"

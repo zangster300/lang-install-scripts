@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+
+# sources
+#   https://github.com/odin-lang/Odin/releases
+#   https://odin-lang.org/docs/nightly/
+
+if [ -z $URL ] && [ -z $CHECKSUM ]; then
+    URL=https://f001.backblazeb2.com/file/odin-binaries/nightly/odin-macos-arm64-nightly%2B2026-06-24.tar.gz
+    CHECKSUM=49004d0062895bd8bdcde2157e495f78bed8c326
+fi
+
+if [ -z "$INSTALL_PATH" ]; then
+    INSTALL_PATH=/usr/local/odin
+fi
+
+install_odin() {
+    FNAME="${URL##*/}"
+
+    printf "downloading %s\n" "$URL"
+    curl -LO "$URL"
+
+    ACTUAL=$(shasum -a 1 "$FNAME" | awk '{print $1}')
+    if [[ "$ACTUAL" != "$CHECKSUM" ]]; then
+        printf "checksum mismatch\n"
+        exit 1
+    fi
+
+    mkdir odin
+    tar -xvf "$FNAME" -C odin --strip-components=1 >/dev/null 2>&1
+    sudo rm -rf "$INSTALL_PATH"
+    sudo mv odin "$INSTALL_PATH"
+    rm "$FNAME"
+}
+
+install_ols() {
+    git clone https://github.com/DanielGavin/ols.git
+
+    cd ols
+
+    ./build.sh
+    ./odinfmt.sh
+
+    if [ -z "$ODINBIN" ]; then
+        ODINBIN=/usr/local/odin/bin
+    fi
+
+    if [ ! -d "$ODINBIN" ]; then
+        sudo mkdir -p "$ODINBIN"
+    fi
+
+    sudo mv odinfmt ols "$ODINBIN"
+
+    cd ../
+    rm -rf ./ols
+
+    printf "installed odinfmt and ols to %s\n" "$ODINBIN"
+}
+
+download_odin=true
+download_ols=false
+for arg in "$@"; do
+    case "$arg" in
+    -skip)
+        download_odin=false
+        ;;
+    -ols)
+        download_ols=true
+        ;;
+    esac
+done
+
+if "$download_odin"; then
+    install_odin
+fi
+
+if "$download_ols"; then
+    install_ols
+fi
+
+printf "done\n"

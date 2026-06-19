@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+
+# sources
+#   https://go.dev/dl
+
+if [ -z "$URL" ] && [ -z "$CHECKSUM" ]; then
+    URL=https://go.dev/dl/go1.26.4.darwin-arm64.tar.gz
+    CHECKSUM=b62ad2b6d7d2464f12a5bcad7ff47f19d08325773b5efd21610e445a05a9bf53
+fi
+
+if [ -z "$INSTALL_PATH" ]; then
+    INSTALL_PATH=/usr/local/go
+fi
+
+install_go() {
+    FNAME="${URL##*/}"
+
+    printf "downloading %s\n" "$URL"
+    curl -LO "$URL"
+
+    ACTUAL=$(shasum -a 256 "$FNAME" | awk '{print $1}')
+    if [[ "$ACTUAL" != "$CHECKSUM" ]]; then
+        printf "checksum mismatch\n"
+        exit 1
+    fi
+
+    mkdir go
+    tar -xvf "$FNAME" >/dev/null 2>&1
+
+    sudo rm -rf "$INSTALL_PATH"
+    sudo mv go "$INSTALL_PATH"
+    rm "$FNAME"
+}
+
+install_go
+
+printf "done"
